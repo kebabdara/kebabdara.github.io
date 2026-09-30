@@ -1,7 +1,7 @@
 {
   "name": "Kebab Dara Mobile",
   "short_name": "Kebab Dara",
-  "description": "Sistem operasional Kebab Dara: waste, stok, order, keuangan, absensi, laporan.",
+  "description": "Sistem Operasional KDG – Kebab Dara Group",
   "start_url": "./?app=1",
   "scope": "./",
   "display": "standalone",
