@@ -6,6 +6,9 @@
 <title>Kebab Dara Mobile</title>
 <meta name="description" content="Sistem operasional Kebab Dara">
 <meta name="theme-color" content="#B91C1C">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kebab Dara">
@@ -35,8 +38,8 @@
 <div class="box">
   <img class="logo" src="icon-512.png" alt="Kebab Dara">
   <h1>Kebab Dara Mobile</h1>
-  <p>Sistem operasional outlet</p>
-  <div class="load"><div>Membuka aplikasi…</div><div class="bar"><i></i></div></div>
+  <p>Sistem Operasional KDG</p>
+  <div class="load"><div>Loading...</div><div class="bar"><i></i></div></div>
   <div class="aksi">
     <a class="btn b1" id="buka" href="#">Buka Kebab Dara Mobile</a>
     <button class="btn b2" id="pasang" hidden>📲 Pasang di layar HP</button>
@@ -48,7 +51,9 @@
   var APP = 'https://script.google.com/macros/s/AKfycbzwx5suNAw5r_2LS2lvpXvV2Pp-LNtNKnGltKLP8lpxQDDDZXtDz8NE8_7wm7hKcm16/exec?form=menu';
   document.getElementById('buka').href = APP;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || /[?&]app=1/.test(location.search);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+  // Selalu periksa versi terbaru aplikasi (tanpa cache browser)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=4', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
+  var VERSI = '4';
   function tambahEmbed(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'; }
   if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
