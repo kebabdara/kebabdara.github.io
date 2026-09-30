@@ -1,5 +1,5 @@
 /* Service worker sederhana: membuat halaman bisa dipasang sebagai aplikasi & menyimpan halaman peluncur untuk dibuka cepat. */
-const CACHE = 'kebabdara-launcher-v1';
+const CACHE = 'kebabdara-launcher-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });

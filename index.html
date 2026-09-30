@@ -27,6 +27,8 @@
   .load{display:none;margin-top:22px}.bar{width:150px;height:4px;border-radius:9px;background:rgba(255,255,255,.25);margin:10px auto 0;overflow:hidden}
   .bar i{display:block;height:100%;width:40%;background:#FDE68A;border-radius:9px;animation:l 1.1s ease-in-out infinite}@keyframes l{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   .app .aksi{display:none}.app .load{display:block}
+  #frame{position:fixed;inset:0;width:100%;height:100%;border:0;background:#F4F1EC;opacity:0;transition:opacity .25s;z-index:5}
+  #frame.siap{opacity:1}
 </style>
 </head>
 <body>
@@ -47,9 +49,22 @@
   document.getElementById('buka').href = APP;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || /[?&]app=1/.test(location.search);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
-  if (standalone) {   // dibuka dari ikon di layar HP → langsung ke aplikasi
+  function tambahEmbed(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'; }
+  if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
-    setTimeout(function () { location.replace(APP); }, 350);
+    var f = document.createElement('iframe');
+    f.id = 'frame'; f.title = 'Kebab Dara Mobile';
+    f.allow = 'geolocation; camera; microphone; clipboard-write; fullscreen';
+    f.src = tambahEmbed(APP);
+    f.onload = function () { f.classList.add('siap'); };
+    document.body.appendChild(f);
+    // Pindah form dari dalam aplikasi → tetap di dalam bingkai ini
+    window.addEventListener('message', function (e) {
+      var d = e.data || {};
+      if (d.kd === 'nav' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) { f.classList.remove('siap'); f.src = tambahEmbed(d.url); }
+    });
+    // Cadangan: jika aplikasi tidak bisa tampil di dalam bingkai (mis. pengaturan belum diterbitkan), buka langsung
+    setTimeout(function () { if (!f.classList.contains('siap')) location.replace(APP); }, 20000);
   } else {
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent), hint = document.getElementById('hint'), btn = document.getElementById('pasang'), ev = null;
     hint.innerHTML = ios
