@@ -1,0 +1,21 @@
+LINK SINGKAT KEBAB DARA MOBILE
+==============================
+
+Beranda Kebab Dara Mobile    https://kebabdara.github.io/menu
+Laporan Waste                https://kebabdara.github.io/waste
+Keuangan Harian              https://kebabdara.github.io/keuangan
+Minta Barang                 https://kebabdara.github.io/minta
+Order ke Gudang              https://kebabdara.github.io/order
+Barang Keluar                https://kebabdara.github.io/keluar
+Terima Barang                https://kebabdara.github.io/terima
+Stock Opname                 https://kebabdara.github.io/opname
+Update Harga                 https://kebabdara.github.io/harga
+Harga Menu                   https://kebabdara.github.io/hargamenu
+Pengadaan                    https://kebabdara.github.io/pengadaan
+Approval Pengadaan           https://kebabdara.github.io/approval
+Inventaris                   https://kebabdara.github.io/inventaris
+Pemusnahan                   https://kebabdara.github.io/pemusnahan
+Laporan                      https://kebabdara.github.io/laporan
+Absensi                      https://kebabdara.github.io/absensi
+
+Aplikasi (pasang di layar HP/laptop): https://kebabdara.github.io/
