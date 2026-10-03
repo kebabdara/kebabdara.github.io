@@ -52,24 +52,84 @@
   document.getElementById('buka').href = APP;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || /[?&]app=1/.test(location.search);
   // Selalu periksa versi terbaru aplikasi (tanpa cache browser)
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=4', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
-  var VERSI = '4';
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=7', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
+  var VERSI = '7';
   function tambahEmbed(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'; }
   if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
-    var f = document.createElement('iframe');
-    f.id = 'frame'; f.title = 'Kebab Dara Mobile';
-    f.allow = 'geolocation; camera; microphone; clipboard-write; fullscreen';
-    f.src = tambahEmbed(APP);
-    f.onload = function () { f.classList.add('siap'); };
-    document.body.appendChild(f);
-    // Pindah form dari dalam aplikasi → tetap di dalam bingkai ini
+    // ===== Halaman disimpan di memori: pindah menu yang sudah pernah dibuka = instan, tanpa loading =====
+    var POOL = {}, aktif = null, MAKS = 6, siapPertama = false;
+    var css = document.createElement('style');
+    css.textContent = '.kdf{position:fixed;inset:0;width:100%;height:100%;border:0;visibility:hidden;opacity:0;transition:opacity .15s}.kdf.aktif.siap{visibility:visible;opacity:1;z-index:5;background:#F4F1EC}';
+    document.head.appendChild(css);
+    function kunci(u) { var m = String(u).match(/[?&]form=([^&#]*)/); return (m ? decodeURIComponent(m[1]) : 'menu') || 'menu'; }
+    function bersih(u) { return String(u).replace(/[?&]embed=1/, ''); }
+    function buat(u, k, latar) {
+      var fr = document.createElement('iframe');
+      fr.className = 'kdf'; fr.title = 'Kebab Dara Mobile'; fr.allow = 'geolocation; camera; microphone; clipboard-write; fullscreen';
+      fr.onload = function () { fr.dataset.siap = '1'; siapPertama = true; if (aktif === fr) fr.classList.add('siap'); };
+      fr.src = tambahEmbed(u); document.body.appendChild(fr);
+      return (POOL[k] = { fr: fr, t: latar ? 0 : Date.now(), url: bersih(u), kotor: false });
+    }
+    function hapus(k) { var x = POOL[k]; if (!x) return; try { x.fr.remove(); } catch (e) {} delete POOL[k]; }
+    function kirim(fr, m) { var x = null; for (var q in POOL) if (POOL[q].fr === fr) x = POOL[q]; try { ((x && x.win) || fr.contentWindow).postMessage(m, '*'); } catch (e) {} }
+    function tampil(u) {
+      var k = kunci(u), x = POOL[k];
+      if (x && (x.kotor || x.url !== bersih(u))) { hapus(k); x = null; }   // sudah dipakai kirim / beda tab → muat ulang
+      if (!x) x = buat(u, k);
+      Object.keys(POOL).forEach(function (q) { var fr = POOL[q].fr; fr.classList.toggle('aktif', q === k); if (q !== k) fr.classList.remove('siap'); });
+      aktif = x.fr; x.t = Date.now();
+      if (x.fr.dataset.siap) { x.fr.classList.add('siap'); kirim(x.fr, { kd: 'tampil' }); }
+      var urut = Object.keys(POOL).filter(function (q) { return q !== 'menu' && q !== k; }).sort(function (a, b) { return POOL[a].t - POOL[b].t; });
+      while (Object.keys(POOL).length > MAKS && urut.length) hapus(urut.shift());
+    }
+    function dariFrame(src) {   // pesan datang dari bingkai dalam milik Google → telusuri ke atas sampai ketemu iframe kita
+      for (var q in POOL) { var w = src, cw = POOL[q].fr.contentWindow;
+        for (var i = 0; i < 5 && w; i++) { if (w === cw) { POOL[q].win = src; return q; } try { if (w === w.parent) break; w = w.parent; } catch (e) { break; } } }
+      return null; }
+    tampil(APP);
+    // dibuka dari tautan WA / email / notifikasi: ?f=nama-form → langsung ke form itu (Beranda tetap disiapkan di belakang)
+    var fAwal = (location.search.match(/[?&]f=([a-z0-9]+)/i) || [])[1];
+    if (fAwal && fAwal !== 'menu') tampil(APP.split('?')[0] + '?form=' + fAwal + ((location.search.match(/[?&]tab=([a-z0-9]+)/i) || [])[1] ? '&tab=' + location.search.match(/[?&]tab=([a-z0-9]+)/i)[1] : ''));
     window.addEventListener('message', function (e) {
-      var d = e.data || {};
-      if (d.kd === 'nav' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) { f.classList.remove('siap'); f.src = tambahEmbed(d.url); }
+      var d = e.data || {}, asal = dariFrame(e.source);
+      if (d.kd === 'halo' && asal && POOL[asal].fr === aktif) kirim(aktif, { kd: 'tampil' });
+      if (d.kd === 'nav' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) tampil(d.url);
+      if (d.kd === 'kotor' && asal && POOL[asal]) POOL[asal].kotor = true;           // form baru saja dikirim → lain kali dimuat bersih
+      if (d.kd === 'keluar') Object.keys(POOL).forEach(function (q) { if (q !== asal) hapus(q); });   // logout → tutup semua halaman lain
+      if (d.kd === 'muatDulu' && Array.isArray(d.urls)) d.urls.slice(0, 3).forEach(function (u, i) {
+        if (!/^https:\/\/script\.google\.com\/macros\//.test(u) || POOL[kunci(u)]) return;
+        setTimeout(function () { if (!POOL[kunci(u)] && Object.keys(POOL).length < MAKS) buat(u, kunci(u), true); }, 2500 + i * 2500);
+      });
+      if (d.kd === 'notif') tampilNotif(d);
+      if (d.kd === 'notifTanya') kirimStatus(e.source);
+      if (d.kd === 'notifIzin') mintaIzin(e.source);
     });
-    // Cadangan: jika aplikasi tidak bisa tampil di dalam bingkai (mis. pengaturan belum diterbitkan), buka langsung
-    setTimeout(function () { if (!f.classList.contains('siap')) location.replace(APP); }, 20000);
+    // ===== Notifikasi pop-up (HP & laptop) =====
+    function kirimStatus(w) { try { (w || (aktif && aktif.contentWindow)).postMessage({ kd: 'notifStatus', izin: ('Notification' in window) ? Notification.permission : 'tidak-didukung' }, '*'); } catch (e) {} }
+    function tampilNotif(d) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      var opt = { body: d.body || '', icon: 'icon-192.png', badge: 'favicon.png', tag: d.tag || undefined, renotify: true, data: { url: d.url || '' } };
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (r) { r.showNotification(d.title || 'Kebab Dara', opt); }).catch(function () { try { new Notification(d.title, opt); } catch (e) {} });
+      else { try { new Notification(d.title, opt); } catch (e) {} }
+    }
+    function mintaIzin(w) {
+      if (!('Notification' in window)) { kirimStatus(w); return; }
+      if (Notification.permission !== 'default') { kirimStatus(w); return; }
+      var b = document.getElementById('izinNotif');
+      if (!b) { b = document.createElement('button'); b.id = 'izinNotif'; b.type = 'button'; b.textContent = '🔔 Ketuk untuk mengizinkan notifikasi';
+        b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:9999;border:0;border-radius:99px;padding:14px 22px;font:700 15px system-ui,sans-serif;background:#B91C1C;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.3)';
+        document.body.appendChild(b); }
+      b.onclick = function () { Notification.requestPermission().then(function () { b.remove(); kirimStatus(w); }); };
+      setTimeout(function () { if (b.parentNode) b.remove(); }, 15000);
+    }
+    if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', function (e) { var d = e.data || {}; if (d.kd === 'buka' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) tampil(d.url); });
+    // Sinyal lambat: JANGAN keluar dari aplikasi – tampilkan tombol muat ulang di dalam aplikasi
+    setTimeout(function () { if (siapPertama) return;
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = '↻ Koneksi lambat – ketuk untuk muat ulang';
+      b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(28px + env(safe-area-inset-bottom,0px));z-index:9999;border:0;border-radius:99px;padding:14px 22px;font:700 15px system-ui,sans-serif;background:#B91C1C;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.3)';
+      b.onclick = function () { b.remove(); Object.keys(POOL).forEach(hapus); siapPertama = false; tampil(APP); }; document.body.appendChild(b);
+      var t = setInterval(function () { if (siapPertama) { clearInterval(t); b.remove(); } }, 1000); }, 25000);
   } else {
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent), hint = document.getElementById('hint'), btn = document.getElementById('pasang'), ev = null;
     hint.innerHTML = ios
