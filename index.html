@@ -13,6 +13,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kebab Dara">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -52,8 +56,8 @@
   document.getElementById('buka').href = APP;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || /[?&]app=1/.test(location.search);
   // Selalu periksa versi terbaru aplikasi (tanpa cache browser)
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=7', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
-  var VERSI = '7';
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=8', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
+  var VERSI = '8';
   function tambahEmbed(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'; }
   if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
@@ -101,10 +105,31 @@
         if (!/^https:\/\/script\.google\.com\/macros\//.test(u) || POOL[kunci(u)]) return;
         setTimeout(function () { if (!POOL[kunci(u)] && Object.keys(POOL).length < MAKS) buat(u, kunci(u), true); }, 2500 + i * 2500);
       });
+      if (d.kd === 'kembaliHasil') kembaliHasil(d);
       if (d.kd === 'notif') tampilNotif(d);
       if (d.kd === 'notifTanya') kirimStatus(e.source);
       if (d.kd === 'notifIzin') mintaIzin(e.source);
     });
+    // ===== Tombol KEMBALI HP (Android): mundur satu halaman seperti tombol ← Kembali; di Beranda tekan 2x untuk keluar =====
+    var tungguBalas = null, tekanKeluar = 0;
+    function pasangJebakan() { try { history.pushState({ kd: 'app' }, ''); } catch (e) {} }
+    function toastLuncur(t) { var el = document.getElementById('kdToastL');
+      if (!el) { el = document.createElement('div'); el.id = 'kdToastL'; el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9999;background:rgba(20,20,20,.92);color:#fff;padding:12px 18px;border-radius:99px;font:600 14px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
+      el.textContent = t; el.style.opacity = '1'; clearTimeout(el._t); el._t = setTimeout(function () { el.style.opacity = '0'; }, 1900); }
+    function diBeranda() { for (var q in POOL) if (POOL[q].fr === aktif) return q === 'menu'; return true; }
+    function cobaKeluar() {
+      if (Date.now() - tekanKeluar < 2000) { window.removeEventListener('popstate', onBack); history.back(); return; }   // tekan kedua → keluar
+      tekanKeluar = Date.now(); toastLuncur('Tekan Kembali sekali lagi untuk keluar'); pasangJebakan(); }
+    function kembaliHasil(d) { if (!tungguBalas) return; clearTimeout(tungguBalas); tungguBalas = null;
+      if (d.ditangani) { pasangJebakan(); return; }
+      if (diBeranda()) cobaKeluar(); else { pasangJebakan(); tampil(APP); } }
+    function onBack() {
+      if (tungguBalas) { pasangJebakan(); return; }
+      kirim(aktif, { kd: 'kembali' });   // halaman menutup panel yang terbuka / mundur satu halaman
+      tungguBalas = setTimeout(function () { tungguBalas = null;   // halaman tidak menjawab (masih memuat)
+        if (diBeranda()) cobaKeluar(); else { pasangJebakan(); tampil(APP); } }, 900);
+    }
+    pasangJebakan(); window.addEventListener('popstate', onBack);
     // ===== Notifikasi pop-up (HP & laptop) =====
     function kirimStatus(w) { try { (w || (aktif && aktif.contentWindow)).postMessage({ kd: 'notifStatus', izin: ('Notification' in window) ? Notification.permission : 'tidak-didukung' }, '*'); } catch (e) {} }
     function tampilNotif(d) {
