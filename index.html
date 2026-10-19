@@ -62,7 +62,7 @@
   if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
     // ===== Halaman disimpan di memori: pindah menu yang sudah pernah dibuka = instan, tanpa loading =====
-    var POOL = {}, aktif = null, MAKS = 6, siapPertama = false;
+    var POOL = {}, aktif = null, MAKS = 8, siapPertama = false;
     var css = document.createElement('style');
     css.textContent = '.kdf{position:fixed;inset:0;width:100%;height:100%;border:0;visibility:hidden;opacity:0;transition:opacity .15s}.kdf.aktif.siap{visibility:visible;opacity:1;z-index:5;background:#F4F1EC}';
     document.head.appendChild(css);
@@ -101,9 +101,9 @@
       if (d.kd === 'nav' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) tampil(d.url);
       if (d.kd === 'kotor' && asal && POOL[asal]) POOL[asal].kotor = true;           // form baru saja dikirim → lain kali dimuat bersih
       if (d.kd === 'keluar') Object.keys(POOL).forEach(function (q) { if (q !== asal) hapus(q); });   // logout → tutup semua halaman lain
-      if (d.kd === 'muatDulu' && Array.isArray(d.urls)) d.urls.slice(0, 3).forEach(function (u, i) {
+      if (d.kd === 'muatDulu' && Array.isArray(d.urls)) d.urls.slice(0, 4).forEach(function (u, i) {
         if (!/^https:\/\/script\.google\.com\/macros\//.test(u) || POOL[kunci(u)]) return;
-        setTimeout(function () { if (!POOL[kunci(u)] && Object.keys(POOL).length < MAKS) buat(u, kunci(u), true); }, 2500 + i * 2500);
+        setTimeout(function () { if (!POOL[kunci(u)] && Object.keys(POOL).length < MAKS) buat(u, kunci(u), true); }, 2000 + i * 2000);
       });
       if (d.kd === 'kembaliHasil') kembaliHasil(d);
       if (d.kd === 'notif') tampilNotif(d);
