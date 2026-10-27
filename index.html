@@ -56,8 +56,8 @@
   document.getElementById('buka').href = APP;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || /[?&]app=1/.test(location.search);
   // Selalu periksa versi terbaru aplikasi (tanpa cache browser)
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=8', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
-  var VERSI = '8';
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=9', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
+  var VERSI = '9';
   function tambahEmbed(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'; }
   if (standalone) {   // dibuka dari ikon aplikasi → tampil di dalam halaman ini (tanpa bilah alamat)
     document.body.classList.add('app');
@@ -71,19 +71,30 @@
     function buat(u, k, latar) {
       var fr = document.createElement('iframe');
       fr.className = 'kdf'; fr.title = 'Kebab Dara Mobile'; fr.allow = 'geolocation; camera; microphone; clipboard-write; fullscreen';
-      fr.onload = function () { fr.dataset.siap = '1'; siapPertama = true; if (aktif === fr) fr.classList.add('siap'); };
+      fr.onload = function () { fr.dataset.siap = '1'; siapPertama = true; if (aktif === fr) fr.classList.add('siap');
+        if (k === 'menu' && !siapkanSering.sudah) { siapkanSering.sudah = 1; setTimeout(siapkanSering, 3000); } };
       fr.src = tambahEmbed(u); document.body.appendChild(fr);
       return (POOL[k] = { fr: fr, t: latar ? 0 : Date.now(), url: bersih(u), kotor: false });
     }
+    function siapkanSering() { seringDibuka().forEach(function (u, i) { setTimeout(function () { var q = kunci(u); if (!POOL[q] && Object.keys(POOL).length < MAKS) buat(u, q, true); }, i * 3000); }); }
     function hapus(k) { var x = POOL[k]; if (!x) return; try { x.fr.remove(); } catch (e) {} delete POOL[k]; }
     function kirim(fr, m) { var x = null; for (var q in POOL) if (POOL[q].fr === fr) x = POOL[q]; try { ((x && x.win) || fr.contentWindow).postMessage(m, '*'); } catch (e) {} }
+    function tanpaTab(u) { return String(u).replace(/[?&]tab=[^&#]*/, ''); }
+    function tabDari(u) { var m = String(u).match(/[?&]tab=([^&#]*)/); return m ? decodeURIComponent(m[1]) : ''; }
+    // v80: menu yang paling sering dibuka di HP ini (untuk disiapkan di belakang setelah Beranda siap)
+    function pakai(k, u) { if (k === 'menu') return; try { var p = JSON.parse(localStorage.getItem('kd_pakai') || '{}'); p[k] = { n: ((p[k] && p[k].n) || 0) + 1, u: bersih(u) }; localStorage.setItem('kd_pakai', JSON.stringify(p)); } catch (e) {} }
+    function seringDibuka() { try { var p = JSON.parse(localStorage.getItem('kd_pakai') || '{}');
+      return Object.keys(p).filter(function (k) { return p[k].n >= 3 && /^https:\/\/script\.google\.com\/macros\//.test(p[k].u); }).sort(function (a, b) { return p[b].n - p[a].n; }).slice(0, 2).map(function (k) { return p[k].u; }); } catch (e) { return []; } }
     function tampil(u) {
-      var k = kunci(u), x = POOL[k];
-      if (x && (x.kotor || x.url !== bersih(u))) { hapus(k); x = null; }   // sudah dipakai kirim / beda tab → muat ulang
+      var k = kunci(u), x = POOL[k], tabBaru = null;
+      // v80: halaman yang sama, hanya beda tab, belum dipakai kirim → langsung pindah tab (tanpa muat ulang)
+      if (x && !x.kotor && x.url !== bersih(u) && x.fr.dataset.siap && tanpaTab(x.url) === tanpaTab(bersih(u))) { tabBaru = tabDari(u); x.url = bersih(u); }
+      else if (x && (x.kotor || x.url !== bersih(u))) { hapus(k); x = null; }   // sudah dipakai kirim / alamat beda → muat ulang
       if (!x) x = buat(u, k);
+      pakai(k, u);
       Object.keys(POOL).forEach(function (q) { var fr = POOL[q].fr; fr.classList.toggle('aktif', q === k); if (q !== k) fr.classList.remove('siap'); });
       aktif = x.fr; x.t = Date.now();
-      if (x.fr.dataset.siap) { x.fr.classList.add('siap'); kirim(x.fr, { kd: 'tampil' }); }
+      if (x.fr.dataset.siap) { x.fr.classList.add('siap'); kirim(x.fr, { kd: 'tampil' }); if (tabBaru !== null) kirim(x.fr, { kd: 'tab', tab: tabBaru }); }
       var urut = Object.keys(POOL).filter(function (q) { return q !== 'menu' && q !== k; }).sort(function (a, b) { return POOL[a].t - POOL[b].t; });
       while (Object.keys(POOL).length > MAKS && urut.length) hapus(urut.shift());
     }
@@ -99,9 +110,10 @@
       var d = e.data || {}, asal = dariFrame(e.source);
       if (d.kd === 'halo' && asal && POOL[asal].fr === aktif) kirim(aktif, { kd: 'tampil' });
       if (d.kd === 'nav' && /^https:\/\/script\.google\.com\/macros\//.test(d.url)) tampil(d.url);
-      if (d.kd === 'kotor' && asal && POOL[asal]) POOL[asal].kotor = true;           // form baru saja dikirim → lain kali dimuat bersih
+      if (d.kd === 'kotor' && asal && POOL[asal]) POOL[asal].kotor = true;
+      if (d.kd === 'tabGagal' && asal && POOL[asal]) { var ul = POOL[asal].url, ak = POOL[asal].fr === aktif; hapus(asal); if (ak) tampil(ul); }   // tab tidak ada → muat ulang cara lama           // form baru saja dikirim → lain kali dimuat bersih
       if (d.kd === 'keluar') Object.keys(POOL).forEach(function (q) { if (q !== asal) hapus(q); });   // logout → tutup semua halaman lain
-      if (d.kd === 'muatDulu' && Array.isArray(d.urls)) d.urls.slice(0, 4).forEach(function (u, i) {
+      if (d.kd === 'muatDulu' && Array.isArray(d.urls)) d.urls.slice(0, 2).forEach(function (u, i) {
         if (!/^https:\/\/script\.google\.com\/macros\//.test(u) || POOL[kunci(u)]) return;
         setTimeout(function () { if (!POOL[kunci(u)] && Object.keys(POOL).length < MAKS) buat(u, kunci(u), true); }, 2000 + i * 2000);
       });
